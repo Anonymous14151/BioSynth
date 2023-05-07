@@ -1,0 +1,17 @@
+neurokit2
+numpy
+matplotlib
+pandas
+MIDIUtil
+mingus
+music
+pygame
+audiolazy
+FoxDot
+sc3
+mido
+python-rtmidi
+pyo
+librosa
+tsfel
+ruptures
