@@ -6,7 +6,6 @@ MIDIUtil
 mingus
 music
 pygame
-audiolazy
 FoxDot
 sc3
 mido
