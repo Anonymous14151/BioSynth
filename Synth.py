@@ -389,12 +389,29 @@ class Biosig():
         self.sr = sr
         self.music_sr = 44100
 
+        if(self.sig_type == "ecg"):
+            #normalize
+            self.s_norm = (self.sig - np.min(self.sig)) / (np.max(self.sig) - np.min(self.sig))
+            #resample to sound wave sampling rate
+            self.sig_proc = self.resample(self.s_norm)
+            #detect peaks
+            _, info = nk.ecg.ecg_peaks(self.sig_proc, sampling_rate=self.music_sr)
+            self.peaks_pos = [0] + list(info["ECG_R_Peaks"]) + [2 * info["ECG_R_Peaks"][-1] - info["ECG_R_Peaks"][-2]]
+            #get rr intervals
+            self.rr_ = np.diff(self.peaks_pos) / self.music_sr
+            self.rr_avg = [np.mean(self.rr_[i:i + 5]) for i in range(0, len(self.rr_ - 4))]
+            self.rr_avg_bpm = [60 / i for i in self.rr_avg]
+            self.rr_avg_res = self.resample(self.rr_avg_bpm)
+
+        elif(self.sig_type == "emg"):
+            self.env = self.resample(self._normalize(self.low_pass(np.abs(self.sig - np.mean(self.sig)), 2)))
+
     def process(self):
         self.normalize()
         self.sig_proc = self.resample(self.s_norm)
 
     def resample(self, sig_i):
-        return resample(sig_i, len(sig_i) * 44100 // self.sr)  # resample to audio SR
+        return resample(sig_i, len(self.sig) * 44100 // self.sr)  # resample to audio SR
 
     def low_pass(self, s, fc, order=2):
         # butterworth filter
@@ -402,20 +419,11 @@ class Biosig():
         return filtfilt(b, a, s)
 
     def normalize(self):
-        if(self.sig_type == "ecg_hr"):
-            self.s_norm = (self.sig - 30) / (210 - 30)
-        elif(self.sig_type == "ecg_raw"):
-            self.s_norm = (self.sig - np.min(self.sig)) / (np.max(self.sig) - np.min(self.sig))
-        else:
-            self.s_norm = (self.sig-np.min(self.sig))/(np.max(self.sig)-np.min(self.sig))
+        self.s_norm = (self.sig-np.min(self.sig))/(np.max(self.sig)-np.min(self.sig))
 
     @staticmethod
     def _normalize(s):
         return (s-np.min(s))/(np.max(s)-np.min(s))
-
-    def envelope(self):
-        if(self.sig_type == "emg"):
-            self.env = self.resample(self._normalize(self.low_pass(np.abs(self.sig - np.mean(self.sig)), 2)))
 
     @staticmethod
     def amp_mod(init_amp, env):
@@ -432,18 +440,6 @@ class Biosig():
             self.peaks_pos = [0] + list(info["ECG_R_Peaks"]) + [2*info["ECG_R_Peaks"][-1] - info["ECG_R_Peaks"][-2]]
         else:
             self.peaks_pos = [] #empty peaks list for other signal types
-
-    def ecg_rr(self):
-        if(self.sig_type=="ecg"):
-            self.ecg_peaks()
-            # self.peaks_pos = np.where(self.peaks_ == 1)[0]
-            self.rr_ = np.diff(self.peaks_pos)/self.music_sr
-            self.rr_avg = [np.mean(self.rr_[i:i+5]) for i in range(0, len(self.rr_-4))]
-            self.rr_avg_bpm = [60/i for i in self.rr_avg]
-            self.rr_avg_res = self.resample(self.rr_avg_bpm)
-
-        else:
-            self.rr_ = []
 
 def map_value(y, min_val, max_val, min_res, max_res):
     return min_res + ((y-min_val)/(max_val-min_val))*(max_res-min_res)
@@ -482,13 +478,11 @@ def createMelody(list_keys, list_dur, dur_sec):
 
 
 if __name__ == "__main__":
-
     #try with the ecg signal
     ecg = nk.ecg_simulate(duration=60, sampling_rate=1000, heart_rate=60, heart_rate_std=5)
     signals, info = nk.ecg_process(ecg, sampling_rate=1000)
     s = np.array(signals["ECG_Clean"])
     peaks_ = np.array(signals["ECG_R_Peaks"])
-
 
     #try amplitude modulation with emg envelope
     # s = np.loadtxt("data/SampleEMG.txt")[:, 2]
