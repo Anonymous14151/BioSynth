@@ -10,7 +10,6 @@ from scipy.io import wavfile
 from scipy.signal import resample, butter, filtfilt
 
 import librosa
-from audiolazy.lazy_midi import str2midi, midi2str
 
 import matplotlib.pyplot as plt
 
@@ -532,7 +531,7 @@ if __name__ == "__main__":
     # synth_obj.wave_to_file(wav2, fname="ecg_sine.wav")
 
     mixer.init()
-    mixer.music.load("ecg_sine.wav")
+    mixer.music.load("sound_output/ecg_sine.wav")
     mixer.music.play()
 
     while True:
